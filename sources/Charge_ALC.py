@@ -3,6 +3,8 @@ import serial
 from serial.serialutil import PARITY_EVEN, Timeout
 import serial.tools.list_ports, serial.tools.list_ports_common, serial.tools.list_ports_windows
 import time
+
+from simpleHelpFunc import transByArToEscByAr
 #import locale
 #locale.setlocale(locale.LC_ALL, 'de_DE')
 
@@ -12,9 +14,6 @@ def transAccuNumToStr(accuNumber):
         return(accuTypsStr[accuNumber])
     else:
         return(accuTypsStr[6])
-
-def transEscByArToClearByAr(RawArray : bytearray):
-    laenge = RawArray.__len__()
 
 class ChargeDevicesAlcGeneric():
 
@@ -262,40 +261,19 @@ class ChargeDeviceALCChannel():
 
 class ChargeDeviceAccuDbEntry():
     
-    def __init__(self,chargePort,dbEntryNumber):
+    def __init__(self,chargePort:serial.Serial,dbEntryNumber):
         
         self.__chargePort = chargePort
         self.__dbEntryNumber = dbEntryNumber
 
     def pulldbEntry(self):
         temp_ByteArray : bytearray
-        print(self.__dbEntryNumber)
-        channelInstr = bytearray([0x02, 0x64])
-        self.__chargePort.write(channelInstr)
-        if (self.__dbEntryNumber == 0x02 or self.__dbEntryNumber == 0x03 or self.__dbEntryNumber == 0x05):
-            channelInstr = bytearray([0x05, 0x10 + channelInstr])
-        else:
-            channelInstr = bytearray([self.__dbEntryNumber])
-        self.__chargePort.write(channelInstr)
-        channelInstr = bytearray([0x03])
-        self.__chargePort.write(channelInstr)
+        channelInstr = bytearray([0x64,self.__dbEntryNumber])
+        self.__chargePort.write(transByArToEscByAr(channelInstr))
+        temp_ByteArray          = self.__chargePort.read_until(b'\x03',50)
 
-        if (self.__dbEntryNumber == 0x02 or self.__dbEntryNumber == 0x03 or self.__dbEntryNumber == 0x05):
-            temp_ByteArray   = self.__chargePort.read(29)
-            print(temp_ByteArray)
-            if self.__dbEntryNumber == 0x02:
-                temp_ByteArray[2] = 0x02
-            elif self.__dbEntryNumber == 0x03:
-                temp_ByteArray[2] = 0x03
-            elif self.__dbEntryNumber == 0x05:
-                temp_ByteArray[2] = 0x05
-            for i in range(4,28):
-                temp_ByteArray[i-1] = temp_ByteArray[i]
-        else:
-            temp_ByteArray          = self.__chargePort.read(28)
-
-        self.__accuName         = temp_ByteArray[3:12].decode()
-        self.__dbRereadEntryNumber = temp_ByteArray[2]
+        self.__accuName         = temp_ByteArray[2:10].decode()
+        self.__dbRereadEntryNumber = temp_ByteArray[1]
         self.__accuType         = temp_ByteArray[12]
         self.__accuCellCount    = temp_ByteArray[13]
         self.__accuCapacity     = float((temp_ByteArray[14] * 0x1000000 + temp_ByteArray[15] * 0x10000 + temp_ByteArray[16] * 0x100 + temp_ByteArray[17]) / 10000)
@@ -335,24 +313,26 @@ class ChargeDeviceAccuDbEntry():
     def getFunctionsFlags(self):
         return(self.__functionsFlags)
 
-chargeDevice = ChargeDevicesAlcGeneric("COM4")
-chargeDevice.setVerSerNum(chargeDevice.pullVerSerNum())
-chargeDevice.setTemperatures(chargeDevice.pullTemperatures())
+if __name__ == "__main__":
 
-chargeCannel = ChargeDeviceALCChannel(chargeDevice.getChargePort(),0)
-chargeCannel.pullCurrentCannelData()
-chargeCannel.pullCurrentMeasuredValues()
+    chargeDevice = ChargeDevicesAlcGeneric("COM4")
+    chargeDevice.setVerSerNum(chargeDevice.pullVerSerNum())
+    chargeDevice.setTemperatures(chargeDevice.pullTemperatures())
 
-chargeDBentry = ChargeDeviceAccuDbEntry(chargeDevice.getChargePort(),0x02)
-chargeDBentry.pulldbEntry()
+    chargeCannel = ChargeDeviceALCChannel(chargeDevice.getChargePort(),0)
+    chargeCannel.pullCurrentCannelData()
+    chargeCannel.pullCurrentMeasuredValues()
 
-print(chargeDevice.getSerNum())
-print(chargeDevice.getDeviceTypeLong())
-print(chargeDevice.getDeviceTypeShort())
-print(chargeDevice.getDeviceSwVersion())
-print(chargeDevice.getMainTemperature(),"°C")
+    chargeDBentry = ChargeDeviceAccuDbEntry(chargeDevice.getChargePort(),0x02)
+    chargeDBentry.pulldbEntry()
 
-print(chargeDBentry.getAccuName())
-print(chargeDBentry.getAccuTyp())
-print(chargeDBentry.getAccuCellCount())
-print(chargeDBentry.getChargeCurrent())
+    print(chargeDevice.getSerNum())
+    print(chargeDevice.getDeviceTypeLong())
+    print(chargeDevice.getDeviceTypeShort())
+    print(chargeDevice.getDeviceSwVersion())
+    print(chargeDevice.getMainTemperature(),"°C")
+
+    print(chargeDBentry.getAccuName())
+    print(chargeDBentry.getAccuTyp())
+    print(chargeDBentry.getAccuCellCount())
+    print(chargeDBentry.getChargeCurrent())
