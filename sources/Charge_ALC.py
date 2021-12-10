@@ -4,7 +4,8 @@ from serial.serialutil import PARITY_EVEN, Timeout
 import serial.tools.list_ports, serial.tools.list_ports_common, serial.tools.list_ports_windows
 import time
 
-from simpleHelpFunc import transByArToEscByAr
+from simpleHelpFunc import transByArToEscByAr, transEscByArToClearByAr
+
 #import locale
 #locale.setlocale(locale.LC_ALL, 'de_DE')
 
@@ -45,38 +46,47 @@ class ChargeDevicesAlcGeneric():
         temp_ByteArray = self.__chargePort.read(9)
         return(temp_ByteArray)
    
-    def setVerSerNum(self, serNumRaw : bytearray):
+    def setVerSerNum(self, serNumRaw: bytearray):
+        longAlcTyp = {98: "ALC 8500 Firmware < 2.00", 99: "ALC 8000 Firmware < 2.00",
+                      100: "ALC 8500-2 Firmware < 2.00", 101: "ALC 8000 PLUS Firmware < 2.00", 102: "ALC 5000 mobile Firmware < 2.00",
+                      103: "ALC 3000 PC Firmware > 2.00", 104: "ALC 8500-2 Firmware > 2.00", 105: "ALC 8000 Firmware > 2.00",
+                      106: "ALC 5000 mobil Firmware > 2.00"}
+        '''
         longAlcTyp = ["Start"]
-        longAlcTyp[98] = "ALC 8500 Firmware < 2.00"
-        longAlcTyp[99] = "ALC 8000 Firmware < 2.00"
-        longAlcTyp[100] = "ALC 8500-2 Firmware < 2.00"
-        longAlcTyp[101] = "ALC 8000 PLUS Firmware < 2.00"
-        longAlcTyp[102] = "ALC 5000 mobile Firmware < 2.00"
-        longAlcTyp[103] = "ALC 3000 PC Firmware > 2.00"
-        longAlcTyp[104] = "ALC 8500-2 Firmware > 2.00"
-        longAlcTyp[105] = "ALC 8000 Firmware > 2.00"
-        longAlcTyp[106] = "ALC 5000 mobil Firmware > 2.00"
-
+        longAlcTyp.insert(98,"ALC 8500 Firmware < 2.00")
+        longAlcTyp.insert(99,"ALC 8000 Firmware < 2.00")
+        longAlcTyp.insert(100,"ALC 8500-2 Firmware < 2.00")
+        longAlcTyp.insert(101,"ALC 8000 PLUS Firmware < 2.00")
+        longAlcTyp.insert(102,"ALC 5000 mobile Firmware < 2.00")
+        longAlcTyp.insert(103,"ALC 3000 PC Firmware > 2.00")
+        longAlcTyp.insert(104,"ALC 8500-2 Firmware > 2.00")
+        longAlcTyp.insert(105,"ALC 8000 Firmware > 2.00")
+        longAlcTyp.insert(106,"ALC 5000 mobil Firmware > 2.00")
+        '''
+        shortAlcTyp = {98: "ALC8500", 99: "ALC8000", 100: "ALC8500-2", 101: "ALC8000PLUS",
+                       102: "ALC5000mobile", 103: "ALC3000PC", 104: "ALC8500-2", 105: "ALC8000", 106: "ALC5000mobil"}
+        '''
         shortAlcTyp = ["Start"]
-        shortAlcTyp[98] = "ALC8500"
-        shortAlcTyp[99] = "ALC8000"
-        shortAlcTyp[100] = "ALC8500-2"
-        shortAlcTyp[101] = "ALC8000PLUS"
-        shortAlcTyp[102] = "ALC5000mobile"
-        shortAlcTyp[103] = "ALC3000PC"
-        shortAlcTyp[104] = "ALC8500-2"
-        shortAlcTyp[105] = "ALC8000"
-        shortAlcTyp[106] = "ALC5000mobil"
-
+        shortAlcTyp.insert(98, "ALC8500")
+        shortAlcTyp.insert(99, "ALC8000")
+        shortAlcTyp.insert(100, "ALC8500-2")
+        shortAlcTyp.insert(101, "ALC8000PLUS")
+        shortAlcTyp.insert(102, "ALC5000mobile")
+        shortAlcTyp.insert(103, "ALC3000PC")
+        shortAlcTyp.insert(104, "ALC8500-2")
+        shortAlcTyp.insert(105, "ALC8000")
+        shortAlcTyp.insert(106, "ALC5000mobil")
+        '''
         temp_string = serNumRaw[7:11]
         self.__SwVersion = temp_string.decode()
+        # print(longAlcTyp.index("ALC 8000 Firmware > 2.00"))
         self.__TypeLong = longAlcTyp[serNumRaw[2]]
         self.__TypeShort = shortAlcTyp[serNumRaw[2]]
 
         temp_string = serNumRaw[13:23]
         self.__SerialNumber = temp_string.decode()
 
-    def setTemperatures(self,temperaturesRaw:bytearray):
+    def setTemperatures(self, temperaturesRaw: bytearray):
 
         temp_temp_int = temperaturesRaw[2] * 256 + temperaturesRaw[3]
         if temp_temp_int == 0xABE0:
@@ -139,7 +149,7 @@ class ChargeDeviceALC3000(ChargeDevicesAlcGeneric):
 
 class ChargeDeviceALCChannel():
 
-    def __init__(self, chargePort, channelNumber):
+    def __init__(self, chargePort:serial.Serial, channelNumber):
 
         self.ser_port = chargePort
         self.__chargePort = chargePort
@@ -155,20 +165,6 @@ class ChargeDeviceALCChannel():
         self.__accuNumber   = temp_ByteArray[3]
         self.__accuType     = temp_ByteArray[4]
         self.__accuTypeDescription = transAccuNumToStr(self.__accuType)
-        #if self.__accuType == 0:
-        #    self.__accuTypeDescription = "NiCd"
-        #elif self.__accuType == 1:
-        #    self.__accuTypeDescription = "NiMH"
-        #elif self.__accuType == 2:
-        #     self.__accuTypeDescription = "Li-Ion"
-        # elif self.__accuType == 3:
-        #     self.__accuTypeDescription = "LiPo"
-        # elif self.__accuType == 4:
-        #     self.__accuTypeDescription = "Pb"
-        # elif self.__accuType == 5:
-        #     self.__accuTypeDescription = "LiFePO"
-        # elif self.__accuType == 0xff:
-        #     self.__accuTypeDescription = "N/A"
         self.__cellCount    = temp_ByteArray[5]
         self.__rechargeCurrent = float((temp_ByteArray[6] * 256 + temp_ByteArray[7]) / 10)
         self.__chargeCurrent = float((temp_ByteArray[8] * 256 + temp_ByteArray[9]) / 10)
@@ -196,7 +192,9 @@ class ChargeDeviceALCChannel():
             self.__chargePort.write(channelInstr)
 
             temp_ByteArray = self.__chargePort.read(12)
-            
+            self.__chargePort.reset_input_buffer()
+            self.__chargePort.reset_output_buffer()
+            # time.sleep(0.5)
             if temp_ByteArray[11] == 0x03:
                 if (temp_ByteArray[3] * 256 + temp_ByteArray[4]) != 0xFFFF:
                     self.__topicalVoltage = float((temp_ByteArray[3] * 256 + temp_ByteArray[4]) / 1000)
@@ -269,19 +267,29 @@ class ChargeDeviceAccuDbEntry():
     def pulldbEntry(self):
         temp_ByteArray : bytearray
         channelInstr = bytearray([0x64,self.__dbEntryNumber])
+        temp_ByteArray = transByArToEscByAr(channelInstr)
+        '''
+        for i in range(0,temp_ByteArray.__len__()):
+            self.__chargePort.write(temp_ByteArray[i])
+            time.sleep(0.01)
+            print(i," ",temp_ByteArray[i])
+        '''
         self.__chargePort.write(transByArToEscByAr(channelInstr))
+        print(transByArToEscByAr(channelInstr))
         temp_ByteArray          = self.__chargePort.read_until(b'\x03',50)
-
-        self.__accuName         = temp_ByteArray[2:10].decode()
+        print(temp_ByteArray)
+        temp_ByteArray          = transEscByArToClearByAr(temp_ByteArray)
+        print(temp_ByteArray)
+        self.__accuName         = temp_ByteArray[2:11].decode()
         self.__dbRereadEntryNumber = temp_ByteArray[1]
-        self.__accuType         = temp_ByteArray[12]
-        self.__accuCellCount    = temp_ByteArray[13]
-        self.__accuCapacity     = float((temp_ByteArray[14] * 0x1000000 + temp_ByteArray[15] * 0x10000 + temp_ByteArray[16] * 0x100 + temp_ByteArray[17]) / 10000)
-        self.__rechargeCurrent  = float((temp_ByteArray[18] * 256 + temp_ByteArray[19]) / 10)
-        self.__chargeCurrent    = float((temp_ByteArray[20] * 256 + temp_ByteArray[21]) / 10)
-        self.__restPeriod       = temp_ByteArray[22] * 256 + temp_ByteArray[23]
-        self.__chargeFlags      = temp_ByteArray[24]
-        self.__functionsFlags   = temp_ByteArray[25]
+        self.__accuType         = temp_ByteArray[11]
+        self.__accuCellCount    = temp_ByteArray[12]
+        self.__accuCapacity     = float((temp_ByteArray[13] * 0x1000000 + temp_ByteArray[14] * 0x10000 + temp_ByteArray[15] * 0x100 + temp_ByteArray[16]) / 10000)
+        self.__rechargeCurrent  = float((temp_ByteArray[17] * 256 + temp_ByteArray[18]) / 10)
+        self.__chargeCurrent    = float((temp_ByteArray[19] * 256 + temp_ByteArray[20]) / 10)
+        self.__restPeriod       = temp_ByteArray[21] * 256 + temp_ByteArray[22]
+        self.__chargeFlags      = temp_ByteArray[23]
+        self.__functionsFlags   = temp_ByteArray[24]
 
         print(temp_ByteArray)
         #print(self.__accuName)
@@ -322,8 +330,8 @@ if __name__ == "__main__":
     chargeCannel = ChargeDeviceALCChannel(chargeDevice.getChargePort(),0)
     chargeCannel.pullCurrentCannelData()
     chargeCannel.pullCurrentMeasuredValues()
-
-    chargeDBentry = ChargeDeviceAccuDbEntry(chargeDevice.getChargePort(),0x02)
+    time.sleep(1)
+    chargeDBentry = ChargeDeviceAccuDbEntry(chargeDevice.getChargePort(),0x05)
     chargeDBentry.pulldbEntry()
 
     print(chargeDevice.getSerNum())

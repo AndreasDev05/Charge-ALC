@@ -14,6 +14,7 @@ def pulldbEntry(chargeport:serial.Serial,dbEntryNumber):
     chargeport.write(channelInstr)
     temp_ByteArray          = chargeport.read_until(b'\x03',50)
     temp_ByteArray          = transEscByArToClearByAr(temp_ByteArray)
+    
     accuName                = temp_ByteArray[2:11].decode()
     dbRereadEntryNumber = temp_ByteArray[1]
     accuType                = temp_ByteArray[11]
@@ -26,13 +27,9 @@ def pulldbEntry(chargeport:serial.Serial,dbEntryNumber):
     self.__chargeFlags      = temp_ByteArray[24]
     self.__functionsFlags   = temp_ByteArray[25]
     '''
-    print(type(temp_ByteArray))
+    # print(type(temp_ByteArray))
     print(temp_ByteArray)
-    print(accuName)
-    print(dbRereadEntryNumber)
-    print(accuType)
-    print(accuCellCount)
-    print(accuCapacity)
+    print(accuName," ",dbRereadEntryNumber," ",accuType," ",accuCellCount," ",accuCapacity)
 
     #print(self.__accuName)
 
@@ -41,4 +38,5 @@ chargeDevice = Charge_ALC.ChargeDevicesAlcGeneric("COM4")
 # chargeDevice.setVerSerNum(chargeDevice.pullVerSerNum())
 # chargeDevice.setTemperatures(chargeDevice.pullTemperatures())
 
-pulldbEntry(chargeDevice.getChargePort(),2)
+for i in range(0,0x27):
+    pulldbEntry(chargeDevice.getChargePort(),i)
