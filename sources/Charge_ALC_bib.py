@@ -28,22 +28,22 @@ class ChargeDevicesAlcGeneric():
 
     def pullVerSerNum(self):
         temp_ByteArray : bytearray
-        chargeInstr = bytearray([2,0x75,3])
+        chargeInstr = bytearray([0x75])
         
-        self.__chargePort.write(chargeInstr)
+        self.__chargePort.write(transByArToEscByAr(chargeInstr))
 
-        temp_ByteArray = self.__chargePort.read(24)
-    #    self.__chargePort.close()
-    #    print(temp_ByteArray)
+        temp_ByteArray = self.__chargePort.read_until(b'\x03',50)
+        temp_ByteArray = transEscByArToClearByAr(temp_ByteArray)
         return(temp_ByteArray)
 
     def pullTemperatures(self):
         temp_ByteArray : bytearray
-        chargeInstr = bytearray([0x02,0x74,0x03])
+        chargeInstr = bytearray([0x74])
         
-        self.__chargePort.write(chargeInstr)
+        self.__chargePort.write(transByArToEscByAr(chargeInstr))
 
-        temp_ByteArray = self.__chargePort.read(9)
+        temp_ByteArray = self.__chargePort.read_until(b'\x03',50)
+        temp_ByteArray = transEscByArToClearByAr(temp_ByteArray)
         return(temp_ByteArray)
    
     def setVerSerNum(self, serNumRaw: bytearray):
@@ -51,58 +51,35 @@ class ChargeDevicesAlcGeneric():
                       100: "ALC 8500-2 Firmware < 2.00", 101: "ALC 8000 PLUS Firmware < 2.00", 102: "ALC 5000 mobile Firmware < 2.00",
                       103: "ALC 3000 PC Firmware > 2.00", 104: "ALC 8500-2 Firmware > 2.00", 105: "ALC 8000 Firmware > 2.00",
                       106: "ALC 5000 mobil Firmware > 2.00"}
-        '''
-        longAlcTyp = ["Start"]
-        longAlcTyp.insert(98,"ALC 8500 Firmware < 2.00")
-        longAlcTyp.insert(99,"ALC 8000 Firmware < 2.00")
-        longAlcTyp.insert(100,"ALC 8500-2 Firmware < 2.00")
-        longAlcTyp.insert(101,"ALC 8000 PLUS Firmware < 2.00")
-        longAlcTyp.insert(102,"ALC 5000 mobile Firmware < 2.00")
-        longAlcTyp.insert(103,"ALC 3000 PC Firmware > 2.00")
-        longAlcTyp.insert(104,"ALC 8500-2 Firmware > 2.00")
-        longAlcTyp.insert(105,"ALC 8000 Firmware > 2.00")
-        longAlcTyp.insert(106,"ALC 5000 mobil Firmware > 2.00")
-        '''
+        
         shortAlcTyp = {98: "ALC8500", 99: "ALC8000", 100: "ALC8500-2", 101: "ALC8000PLUS",
                        102: "ALC5000mobile", 103: "ALC3000PC", 104: "ALC8500-2", 105: "ALC8000", 106: "ALC5000mobil"}
-        '''
-        shortAlcTyp = ["Start"]
-        shortAlcTyp.insert(98, "ALC8500")
-        shortAlcTyp.insert(99, "ALC8000")
-        shortAlcTyp.insert(100, "ALC8500-2")
-        shortAlcTyp.insert(101, "ALC8000PLUS")
-        shortAlcTyp.insert(102, "ALC5000mobile")
-        shortAlcTyp.insert(103, "ALC3000PC")
-        shortAlcTyp.insert(104, "ALC8500-2")
-        shortAlcTyp.insert(105, "ALC8000")
-        shortAlcTyp.insert(106, "ALC5000mobil")
-        '''
-        temp_string = serNumRaw[7:11]
+        
+        temp_string = serNumRaw[6:10]
         self.__SwVersion = temp_string.decode()
-        # print(longAlcTyp.index("ALC 8000 Firmware > 2.00"))
-        self.__TypeLong = longAlcTyp[serNumRaw[2]]
-        self.__TypeShort = shortAlcTyp[serNumRaw[2]]
+        self.__TypeLong = longAlcTyp[serNumRaw[1]]
+        self.__TypeShort = shortAlcTyp[serNumRaw[1]]
 
-        temp_string = serNumRaw[13:23]
+        temp_string = serNumRaw[12:22]
         self.__SerialNumber = temp_string.decode()
 
     def setTemperatures(self, temperaturesRaw: bytearray):
 
-        temp_temp_int = temperaturesRaw[2] * 256 + temperaturesRaw[3]
+        temp_temp_int = temperaturesRaw[1] * 256 + temperaturesRaw[2]
         if temp_temp_int == 0xABE0:
             self.__tempAccuFloat = None
         else:
             self.__tempAccuFloat = float(temp_temp_int / 100)
         #TODO: Negative Temperaturen berechnen
 
-        temp_temp_int = temperaturesRaw[4] * 256 + temperaturesRaw[5]
+        temp_temp_int = temperaturesRaw[3] * 256 + temperaturesRaw[4]
         if temp_temp_int == 0xABE0:
             self.__tempPowerSupFloat = None
         else:
             self.__tempPowerSupFloat = float(temp_temp_int / 100)
         #TODO: Negative Temperaturen berechnen
 
-        temp_temp_int = temperaturesRaw[6] * 256 + temperaturesRaw[7]
+        temp_temp_int = temperaturesRaw[5] * 256 + temperaturesRaw[6]
         self.__tempMainFloat = float(temp_temp_int / 100)
 
     def getSerNum(self):
@@ -158,23 +135,24 @@ class ChargeDeviceALCChannel():
     def pullCurrentCannelData(self):
         temp_ByteArray : bytearray
         #self.__chargePort = serial.Serial(self.ser_port, 38400, 8, PARITY_EVEN, 1, 3)
-        channelInstr = bytearray([2,0x70,self.__channelNumber,3])
-        self.__chargePort.write(channelInstr)
+        channelInstr = bytearray([0x70,self.__channelNumber])
+        self.__chargePort.write(transByArToEscByAr(channelInstr))
 
-        temp_ByteArray = self.__chargePort.read(24)
-        self.__accuNumber   = temp_ByteArray[3]
-        self.__accuType     = temp_ByteArray[4]
+        temp_ByteArray = self.__chargePort.read_until(b'\x03',50)
+        temp_ByteArray = transEscByArToClearByAr(temp_ByteArray)
+        self.__accuNumber   = temp_ByteArray[2]
+        self.__accuType     = temp_ByteArray[3]
         self.__accuTypeDescription = transAccuNumToStr(self.__accuType)
-        self.__cellCount    = temp_ByteArray[5]
-        self.__rechargeCurrent = float((temp_ByteArray[6] * 256 + temp_ByteArray[7]) / 10)
-        self.__chargeCurrent = float((temp_ByteArray[8] * 256 + temp_ByteArray[9]) / 10)
-        self.__accuCapacity = float((temp_ByteArray[10] * 0x1000000 + temp_ByteArray[11] * 0x10000 + temp_ByteArray[12] * 0x100 + temp_ByteArray[13]) / 10000)
-        self.__programNumber = temp_ByteArray[14]
-        self.__formattingCurrent = float((temp_ByteArray[15] * 256 + temp_ByteArray[16]) / 10)
-        self.__restPeriod   = temp_ByteArray[17] * 256 + temp_ByteArray[18]
-        self.__chargeFlags  = temp_ByteArray[19]
-        self.__pointerDataRecord = temp_ByteArray[20] * 256 + temp_ByteArray[21]
-        self.__accuCapacityFactor = temp_ByteArray[22]
+        self.__cellCount    = temp_ByteArray[4]
+        self.__rechargeCurrent = float((temp_ByteArray[5] * 256 + temp_ByteArray[6]) / 10)
+        self.__chargeCurrent = float((temp_ByteArray[7] * 256 + temp_ByteArray[8]) / 10)
+        self.__accuCapacity = float((temp_ByteArray[9] * 0x1000000 + temp_ByteArray[10] * 0x10000 + temp_ByteArray[11] * 0x100 + temp_ByteArray[12]) / 10000)
+        self.__programNumber = temp_ByteArray[13]
+        self.__formattingCurrent = float((temp_ByteArray[14] * 256 + temp_ByteArray[15]) / 10)
+        self.__restPeriod   = temp_ByteArray[16] * 256 + temp_ByteArray[17]
+        self.__chargeFlags  = temp_ByteArray[18]
+        self.__pointerDataRecord = temp_ByteArray[19] * 256 + temp_ByteArray[20]
+        self.__accuCapacityFactor = temp_ByteArray[21]
         
         print("Akkunummer: ",self.__accuNumber)
         print("Ladestrom: ",self.__chargeCurrent)
@@ -184,35 +162,52 @@ class ChargeDeviceALCChannel():
 
     def pullCurrentMeasuredValues(self):
         temp_ByteArray : bytearray
-        isDataSetOK = False
         attemptCount = 0
-        channelInstr = bytearray([2,0x6D,self.__channelNumber,3])
+        channelInstr = bytearray([0x6D,self.__channelNumber])
 
-        while True:
-            self.__chargePort.write(channelInstr)
+        self.__chargePort.write(transByArToEscByAr(channelInstr))
 
-            temp_ByteArray = self.__chargePort.read(12)
-            self.__chargePort.reset_input_buffer()
-            self.__chargePort.reset_output_buffer()
-            # time.sleep(0.5)
-            if temp_ByteArray[11] == 0x03:
-                if (temp_ByteArray[3] * 256 + temp_ByteArray[4]) != 0xFFFF:
-                    self.__topicalVoltage = float((temp_ByteArray[3] * 256 + temp_ByteArray[4]) / 1000)
-                if (temp_ByteArray[5] * 256 + temp_ByteArray[6]) != 0xFFFF:
-                    self.__topicalCurrent = float((temp_ByteArray[5] * 256 + temp_ByteArray[6]) / 10)
-                self.__topicalAccuCapacity = float((temp_ByteArray[7] * 0x1000000 + temp_ByteArray[8] * 0x10000 + temp_ByteArray[9] * 0x100 + temp_ByteArray[10]) / 10000)
-                attemptCount = attemptCount + 1
-                isDataSetOK = True
-            if isDataSetOK or attemptCount > 5:
-                if isDataSetOK == False:
-                    self.__topicalVoltage = None
-                    self.__topicalCurrent = None
-                    self.__topicalAccuCapacity = None
-                break
+        temp_ByteArray = self.__chargePort.read_until(b'\x03',50)
+        self.__chargePort.reset_input_buffer()
+        self.__chargePort.reset_output_buffer()
+        temp_ByteArray = transEscByArToClearByAr(temp_ByteArray)
+        if (temp_ByteArray[2] * 256 + temp_ByteArray[2]) != 0xFFFF:
+            self.__topicalVoltage = float((temp_ByteArray[2] * 256 + temp_ByteArray[3]) / 1000)
+        else:
+            self.__topicalVoltage = None
+        if (temp_ByteArray[4] * 256 + temp_ByteArray[5]) != 0xFFFF:
+            self.__topicalCurrent = float((temp_ByteArray[4] * 256 + temp_ByteArray[5]) / 10)
+        else:
+            self.__topicalCurrent = None
+        self.__topicalAccuCapacity = float((temp_ByteArray[6] * 0x1000000 + temp_ByteArray[7] * 0x10000 + temp_ByteArray[8] * 0x100 + temp_ByteArray[9]) / 10000)
+        attemptCount = attemptCount + 1
 
-        print(self.__topicalVoltage,"V ;",temp_ByteArray[3],"; ",temp_ByteArray[4])
-        print(self.__topicalCurrent,"mA")
-        print(self.__topicalAccuCapacity,"mA/h")
+    def pullChargeFunction(self):
+        temp_ByteArray : bytearray
+        ChargeFunctionStr_DE = {0:"DE",1:"Leerlauf",2:"Pause / Warten",3:"Entladen",4:"Erhaltungsladung",5:"Entladen beendet",6:"Notabschaltung"}
+        ChargeFunctionStr_EN = {0:"EN",1:"idel state",2:"pause / wait",3:"discharge",4:"maintenance charging",5:"discharge end",6:"emergency cutout"}
+        ChargeFunctionStr = [ChargeFunctionStr_EN,ChargeFunctionStr_DE]
+        channelInstr = bytearray([0x61,self.__channelNumber])
+
+        self.__chargePort.write(transByArToEscByAr(channelInstr))
+
+        temp_ByteArray = self.__chargePort.read_until(b'\x03',20)
+        temp_ByteArray = transEscByArToClearByAr(temp_ByteArray)
+
+        self.__chargeFunktion = temp_ByteArray[1]
+
+        if self.__chargeFunktion >= 0x00 and self.__chargeFunktion <= 0x0A:
+            self.__chargeFunktionStr = ChargeFunctionStr[1][1]
+        elif self.__chargeFunktion >= 0x0B and self.__chargeFunktion <= 0x2D:
+            self.__chargeFunktionStr = ChargeFunctionStr[1][2]
+        elif self.__chargeFunktion >= 0x2E and self.__chargeFunktion <= 0x37:
+            self.__chargeFunktionStr = ChargeFunctionStr[1][3]
+        elif self.__chargeFunktion >= 0x38 and self.__chargeFunktion <= 0x6E:
+            self.__chargeFunktionStr = ChargeFunctionStr[1][4]
+        elif self.__chargeFunktion >= 0x6F and self.__chargeFunktion <= 0xA0:
+            self.__chargeFunktionStr = ChargeFunctionStr[1][5]
+        elif self.__chargeFunktion >= 0xA1 and self.__chargeFunktion <= 0xFF:
+            self.__chargeFunktionStr = ChargeFunctionStr[1][6]
 
     def getTopicalVoltage(self):
         return(self.__topicalVoltage)
@@ -257,6 +252,12 @@ class ChargeDeviceALCChannel():
     def getAccuCapacityFactor(self):
         return(self.__accuCapacityFactor)
 
+    def getChargeFunktion(self):
+        return(self.__chargeFunktion)
+
+    def getChargeFunctionStr(self):
+        return(self.__chargeFunktionStr)
+
 class ChargeDeviceAccuDbEntry():
     
     def __init__(self,chargePort:serial.Serial,dbEntryNumber):
@@ -275,11 +276,8 @@ class ChargeDeviceAccuDbEntry():
             print(i," ",temp_ByteArray[i])
         '''
         self.__chargePort.write(transByArToEscByAr(channelInstr))
-        print(transByArToEscByAr(channelInstr))
         temp_ByteArray          = self.__chargePort.read_until(b'\x03',50)
-        print(temp_ByteArray)
         temp_ByteArray          = transEscByArToClearByAr(temp_ByteArray)
-        print(temp_ByteArray)
         self.__accuName         = temp_ByteArray[2:11].decode()
         self.__dbRereadEntryNumber = temp_ByteArray[1]
         self.__accuType         = temp_ByteArray[11]
@@ -291,8 +289,6 @@ class ChargeDeviceAccuDbEntry():
         self.__chargeFlags      = temp_ByteArray[23]
         self.__functionsFlags   = temp_ByteArray[24]
 
-        print(temp_ByteArray)
-        #print(self.__accuName)
 
     def getAccuName(self):
         return(self.__accuName)
@@ -330,7 +326,7 @@ if __name__ == "__main__":
     chargeCannel = ChargeDeviceALCChannel(chargeDevice.getChargePort(),0)
     chargeCannel.pullCurrentCannelData()
     chargeCannel.pullCurrentMeasuredValues()
-    time.sleep(1)
+    chargeCannel.pullChargeFunction()
     chargeDBentry = ChargeDeviceAccuDbEntry(chargeDevice.getChargePort(),0x05)
     chargeDBentry.pulldbEntry()
 
@@ -338,6 +334,7 @@ if __name__ == "__main__":
     print(chargeDevice.getDeviceTypeLong())
     print(chargeDevice.getDeviceTypeShort())
     print(chargeDevice.getDeviceSwVersion())
+    print(chargeCannel.getChargeFunctionStr())
     print(chargeDevice.getMainTemperature(),"°C")
 
     print(chargeDBentry.getAccuName())
