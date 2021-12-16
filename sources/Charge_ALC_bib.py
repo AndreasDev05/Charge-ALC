@@ -6,20 +6,20 @@ import serial.tools.list_ports_common
 import serial.tools.list_ports_windows
 from serial.serialutil import PARITY_EVEN, Timeout
 
-from simpleHelpFunc import transByArToEscByAr, transEscByArToClearByAr
+from simpleHelpFunc import trans_by_ar_to_esc_by_ar, trans_esc_by_ar_to_clear_by_ar
 
 # import locale
 # locale.setlocale(locale.LC_ALL, 'de_DE')
 
 
 def trans_accu_num_to_str(accu_number: bytes):
-    """ Gibt den ausgeschriebenen Akkutyp zurück
+    """ Gibt den ausgeschriebenen Akkutyp zurück.
 
     Der übergebene Bytewert wird in ein String umgesetzt
     """
     accu_typs_str = ["NiCd", "NiMH", "Li-Ion", "LiPo", "Pb", "LiFePO", "N/A"]
-    if accu_number < 6:
-        return accu_typs_str[accu_number]
+    if accu_number < bytes(6):
+        return accu_typs_str[int(accu_number)]
     else:
         return accu_typs_str[6]
 
@@ -37,8 +37,9 @@ class charge_devices_alc_generic():
 
         self.__temp_main_float: float = float()
         self.__temp_accu_float: float = float()
-        self.__temp_power_sup_float: float =float()
-        self.__charge_port = serial.Serial(ser_port, 38400, 8, PARITY_EVEN, 1, 3)
+        self.__temp_power_sup_float: float = float()
+        self.__charge_port = serial.Serial(
+            ser_port, 38400, 8, PARITY_EVEN, 1, 3)
         # TODO: Expliziete Übergabe der Schnittstellenparameter, für eine unverselle Funktion
     #    print(type(self.__chargePort))
 
@@ -46,30 +47,37 @@ class charge_devices_alc_generic():
         temp_byte_array: bytearray
         charge_instr = bytearray([0x75])
 
-        self.__charge_port.write(transByArToEscByAr(charge_instr))
+        self.__charge_port.write(trans_by_ar_to_esc_by_ar(charge_instr))
 
         temp_byte_array = self.__charge_port.read_until(b'\x03', 50)
-        temp_byte_array = transEscByArToClearByAr(temp_byte_array)
+        temp_byte_array = trans_esc_by_ar_to_clear_by_ar(temp_byte_array)
         return temp_byte_array
 
     def pull_temperatures(self):
         temp_byte_array: bytearray
         charge_instr = bytearray([0x74])
 
-        self.__charge_port.write(transByArToEscByAr(charge_instr))
+        self.__charge_port.write(trans_by_ar_to_esc_by_ar(charge_instr))
 
         temp_byte_array = self.__charge_port.read_until(b'\x03', 50)
-        temp_byte_array = transEscByArToClearByAr(temp_byte_array)
+        temp_byte_array = trans_esc_by_ar_to_clear_by_ar(temp_byte_array)
         return temp_byte_array
 
     def set_ver_ser_num(self, ser_num_raw: bytearray):
-        long_alc_typ = {98: "ALC 8500 Firmware < 2.00", 99: "ALC 8000 Firmware < 2.00",
-                      100: "ALC 8500-2 Firmware < 2.00", 101: "ALC 8000 PLUS Firmware < 2.00", 102: "ALC 5000 mobile Firmware < 2.00",
-                      103: "ALC 3000 PC Firmware > 2.00", 104: "ALC 8500-2 Firmware > 2.00", 105: "ALC 8000 Firmware > 2.00",
-                      106: "ALC 5000 mobil Firmware > 2.00"}
+        long_alc_typ = {98: "ALC 8500 Firmware < 2.00",
+                        99: "ALC 8000 Firmware < 2.00",
+                        100: "ALC 8500-2 Firmware < 2.00",
+                        101: "ALC 8000 PLUS Firmware < 2.00",
+                        102: "ALC 5000 mobile Firmware < 2.00",
+                        103: "ALC 3000 PC Firmware > 2.00",
+                        104: "ALC 8500-2 Firmware > 2.00",
+                        105: "ALC 8000 Firmware > 2.00",
+                        106: "ALC 5000 mobil Firmware > 2.00"}
 
-        short_alc_typ = {98: "ALC8500", 99: "ALC8000", 100: "ALC8500-2", 101: "ALC8000PLUS",
-                       102: "ALC5000mobile", 103: "ALC3000PC", 104: "ALC8500-2", 105: "ALC8000", 106: "ALC5000mobil"}
+        short_alc_typ = {98: "ALC8500", 99: "ALC8000", 100: "ALC8500-2",
+                        101: "ALC8000PLUS", 102: "ALC5000mobile",
+                        103: "ALC3000PC", 104: "ALC8500-2",
+                        105: "ALC8000", 106: "ALC5000mobil"}
 
         temp_string = ser_num_raw[6:10]
         self.__sw_version = temp_string.decode()
@@ -139,242 +147,284 @@ class charge_devices_alc_generic():
 
 class ChargeDeviceALC3000(charge_devices_alc_generic):
 
-    chargeCannel = 1
+    charge_cannel = 1
 
     def __init__(self, ser_port):
         charge_devices_alc_generic.__init__(self, ser_port)
 
-        self.chargeCannelIns: list = list()
-        self.chargeDbEntry: list = list()
-        for i in range(1, self.chargeCannel):
-            self.chargeCannelIns[i] = Charge_device_alc_channel(self.__charge_port, i-1)
-            self.chargeCannelIns[i].pullCurrentCannelData()
-            self.chargeCannelIns[i].pullCurrentMeasuredValues()
+        self.charge_cannel_ins: list = list()
+        self.charge_db_entry: list = list()
+        for i in range(1, self.charge_cannel):
+            self.charge_cannel_ins[i] = ChargeDeviceAlcChannel(
+                self.__charge_port, i-1)
+            self.charge_cannel_ins[i].pullCurrentCannelData()
+            self.charge_cannel_ins[i].pullCurrentMeasuredValues()
 
         for i in range(self.accu_db_items):
-            self.chargeDbEntry[i] = ChargeDeviceAccuDbEntry(self.__charge_port, i)
-            self.chargeDbEntry[i].pulldbEntry()
+            self.charge_db_entry[i] = ChargeDeviceAccuDbEntry(
+                self.__charge_port, i)
+            self.charge_db_entry[i].pulldbEntry()
 
 
-class Charge_device_alc_channel():
+class ChargeDeviceAlcChannel():
 
-    def __init__(self, chargePort: serial.Serial, channelNumber):
+    def __init__(self, charge_port: serial.Serial, channel_number):
 
         self.__accu_number: bytes = bytes()
         self.__accu_type: bytes = bytes()
         self.__accu_type_description: str = str()
-        self.ser_port = chargePort
-        self.__chargePort = chargePort
-        self.__channelNumber = channelNumber
+        self.__cell_count: bytes = bytes()
+        self.__recharge_current: float = float()
+        self.__charge_current: float = float()
+        self.__accu_capacity: float = float()
+        self.__program_number: bytes = bytes()
+        self.__formatting_current: float = float()
+        self.__rest_period: int = int()
+        self.__charge_flags: bytes = bytes()
+        self.__pointer_data_record: int = int()
+        self.__accu_capacity_factor: bytes = bytes()
+        self.__topical_voltage: float = float()
+        self.__topical_current: float = float()
+        self.__topical_accu_capacity: float = float()
+        self.__charge_function_str: str = str()
+        self.__charge_function: bytes = bytes()
 
-    def pullCurrentCannelData(self):
-        temp_ByteArray : bytearray
+        self.ser_port = charge_port
+        self.__charge_port = charge_port
+        self.__channel_number = channel_number
+
+    def pull_current_cannel_data(self):
+        temp_byte_array: bytearray
         #self.__chargePort = serial.Serial(self.ser_port, 38400, 8, PARITY_EVEN, 1, 3)
-        channelInstr = bytearray([0x70,self.__channelNumber])
-        self.__chargePort.write(transByArToEscByAr(channelInstr))
+        channel_instr = bytearray([0x70, self.__channel_number])
+        self.__charge_port.write(trans_by_ar_to_esc_by_ar(channel_instr))
 
-        temp_ByteArray = self.__chargePort.read_until(b'\x03',50)
-        temp_ByteArray = transEscByArToClearByAr(temp_ByteArray)
-        self.__accu_number  = temp_ByteArray[2]
-        self.__accu_type    = temp_ByteArray[3]
+        temp_byte_array = self.__charge_port.read_until(b'\x03', 50)
+        temp_byte_array = trans_esc_by_ar_to_clear_by_ar(temp_byte_array)
+        self.__accu_number = temp_byte_array[2]
+        self.__accu_type = temp_byte_array[3]
         self.__accu_type_description = trans_accu_num_to_str(self.__accu_type)
-        self.__cellCount    = temp_ByteArray[4]
-        self.__rechargeCurrent = float((temp_ByteArray[5] * 256 + temp_ByteArray[6]) / 10)
-        self.__chargeCurrent = float((temp_ByteArray[7] * 256 + temp_ByteArray[8]) / 10)
-        self.__accuCapacity = float((temp_ByteArray[9] * 0x1000000 + temp_ByteArray[10] * 0x10000 + temp_ByteArray[11] * 0x100 + temp_ByteArray[12]) / 10000)
-        self.__programNumber = temp_ByteArray[13]
-        self.__formattingCurrent = float((temp_ByteArray[14] * 256 + temp_ByteArray[15]) / 10)
-        self.__restPeriod   = temp_ByteArray[16] * 256 + temp_ByteArray[17]
-        self.__chargeFlags  = temp_ByteArray[18]
-        self.__pointerDataRecord = temp_ByteArray[19] * 256 + temp_ByteArray[20]
-        self.__accuCapacityFactor = temp_ByteArray[21]
-        
-        print("Akkunummer: ",self.__accu_number)
-        print("Ladestrom: ",self.__chargeCurrent)
-        print("Entladestrom: ",self.__rechargeCurrent)
-        print("Akkutype: ",self.__accu_type_description)
-        print("Akkukapazität: ",self.__accuCapacity)
+        self.__cell_count = temp_byte_array[4]
+        self.__recharge_current = float(
+            (temp_byte_array[5] * 256 + temp_byte_array[6]) / 10)
+        self.__charge_current = float(
+            (temp_byte_array[7] * 256 + temp_byte_array[8]) / 10)
+        self.__accu_capacity = float(
+            (temp_byte_array[9] * 0x1000000 + temp_byte_array[10] * 0x10000 + 
+            temp_byte_array[11] * 0x100 + temp_byte_array[12]) / 10000)
+        self.__program_number = temp_byte_array[13]
+        self.__formatting_current = float(
+            (temp_byte_array[14] * 256 + temp_byte_array[15]) / 10)
+        self.__rest_period = temp_byte_array[16] * 256 + temp_byte_array[17]
+        self.__charge_flags = temp_byte_array[18]
+        self.__pointer_data_record = temp_byte_array[19] * \
+            256 + temp_byte_array[20]
+        self.__accu_capacity_factor = temp_byte_array[21]
 
-    def pullCurrentMeasuredValues(self):
-        temp_ByteArray : bytearray
-        attemptCount = 0
-        channelInstr = bytearray([0x6D,self.__channelNumber])
+        print("Akkunummer: ", self.__accu_number)
+        print("Ladestrom: ", self.__charge_current)
+        print("Entladestrom: ", self.__recharge_current)
+        print("Akkutype: ", self.__accu_type_description)
+        print("Akkukapazität: ", self.__accu_capacity)
 
-        self.__chargePort.write(transByArToEscByAr(channelInstr))
+    def pull_current_measured_values(self):
+        temp_byte_array: bytearray
+        attempt_count = 0
+        channel_instr = bytearray([0x6D, self.__channel_number])
 
-        temp_ByteArray = self.__chargePort.read_until(b'\x03',50)
-        self.__chargePort.reset_input_buffer()
-        self.__chargePort.reset_output_buffer()
-        temp_ByteArray = transEscByArToClearByAr(temp_ByteArray)
-        if (temp_ByteArray[2] * 256 + temp_ByteArray[2]) != 0xFFFF:
-            self.__topicalVoltage = float((temp_ByteArray[2] * 256 + temp_ByteArray[3]) / 1000)
+        self.__charge_port.write(trans_by_ar_to_esc_by_ar(channel_instr))
+
+        temp_byte_array = self.__charge_port.read_until(b'\x03', 50)
+        self.__charge_port.reset_input_buffer()
+        self.__charge_port.reset_output_buffer()
+        temp_byte_array = trans_esc_by_ar_to_clear_by_ar(temp_byte_array)
+        if (temp_byte_array[2] * 256 + temp_byte_array[2]) != 0xFFFF:
+            self.__topical_voltage = float(
+                (temp_byte_array[2] * 256 + temp_byte_array[3]) / 1000)
         else:
-            self.__topicalVoltage = None
-        if (temp_ByteArray[4] * 256 + temp_ByteArray[5]) != 0xFFFF:
-            self.__topicalCurrent = float((temp_ByteArray[4] * 256 + temp_ByteArray[5]) / 10)
+            self.__topical_voltage = None
+        if (temp_byte_array[4] * 256 + temp_byte_array[5]) != 0xFFFF:
+            self.__topical_current = float(
+                (temp_byte_array[4] * 256 + temp_byte_array[5]) / 10)
         else:
-            self.__topicalCurrent = None
-        self.__topicalAccuCapacity = float((temp_ByteArray[6] * 0x1000000 + temp_ByteArray[7] * 0x10000 + temp_ByteArray[8] * 0x100 + temp_ByteArray[9]) / 10000)
-        attemptCount = attemptCount + 1
+            self.__topical_current = None
+        self.__topical_accu_capacity = float(
+            (temp_byte_array[6] * 0x1000000 + temp_byte_array[7] * 0x10000 + temp_byte_array[8] * 0x100 + temp_byte_array[9]) / 10000)
+        attempt_count = attempt_count + 1
 
-    def pullChargeFunction(self):
-        temp_ByteArray: bytearray
-        ChargeFunctionStr_DE = {0:"DE", 1:"Leerlauf", 2:"Pause / Warten", 3:"Entladen", 4:"Erhaltungsladung", 5:"Entladen beendet", 6:"Notabschaltung"}
-        ChargeFunctionStr_EN = {0:"EN", 1:"idel state", 2:"pause / wait", 3:"discharge", 4:"maintenance charging", 5:"discharge end", 6:"emergency cutout"}
-        ChargeFunctionStr = [ChargeFunctionStr_EN, ChargeFunctionStr_DE]
-        channelInstr = bytearray([0x61, self.__channelNumber])
+    def pull_charge_function(self):
+        temp_byte_array: bytearray
+        charge_function_str_de = {0: "DE", 1: "Leerlauf", 2: "Pause / Warten",
+                                  3: "Entladen", 4: "Erhaltungsladung", 5: "Entladen beendet", 6: "Notabschaltung"}
+        charge_function_str_en = {0: "EN", 1: "idel state", 2: "pause / wait", 3: "discharge",
+                                  4: "maintenance charging", 5: "discharge end", 6: "emergency cutout"}
+        charge_function_str = [charge_function_str_en, charge_function_str_de]
+        channel_instr = bytearray([0x61, self.__channel_number])
 
-        self.__chargePort.write(transByArToEscByAr(channelInstr))
+        self.__charge_port.write(trans_by_ar_to_esc_by_ar(channel_instr))
 
-        temp_ByteArray = self.__chargePort.read_until(b'\x03', 20)
-        temp_ByteArray = transEscByArToClearByAr(temp_ByteArray)
+        temp_byte_array = self.__charge_port.read_until(b'\x03', 20)
+        temp_byte_array = trans_esc_by_ar_to_clear_by_ar(temp_byte_array)
 
-        self.__chargeFunktion = temp_ByteArray[1]
+        self.__charge_function = temp_byte_array[1]
 
-        if self.__chargeFunktion >= 0x00 and self.__chargeFunktion <= 0x0A:
-            self.__chargeFunktionStr = ChargeFunctionStr[1][1]
-        elif self.__chargeFunktion >= 0x0B and self.__chargeFunktion <= 0x2D:
-            self.__chargeFunktionStr = ChargeFunctionStr[1][2]
-        elif self.__chargeFunktion >= 0x2E and self.__chargeFunktion <= 0x37:
-            self.__chargeFunktionStr = ChargeFunctionStr[1][3]
-        elif self.__chargeFunktion >= 0x38 and self.__chargeFunktion <= 0x6E:
-            self.__chargeFunktionStr = ChargeFunctionStr[1][4]
-        elif self.__chargeFunktion >= 0x6F and self.__chargeFunktion <= 0xA0:
-            self.__chargeFunktionStr = ChargeFunctionStr[1][5]
-        elif self.__chargeFunktion >= 0xA1 and self.__chargeFunktion <= 0xFF:
-            self.__chargeFunktionStr = ChargeFunctionStr[1][6]
+        if self.__charge_function >= 0x00 and self.__charge_function <= 0x0A:
+            self.__charge_function_str = charge_function_str[1][1]
+        elif self.__charge_function >= 0x0B and self.__charge_function <= 0x2D:
+            self.__charge_function_str = charge_function_str[1][2]
+        elif self.__charge_function >= 0x2E and self.__charge_function <= 0x37:
+            self.__charge_function_str = charge_function_str[1][3]
+        elif self.__charge_function >= 0x38 and self.__charge_function <= 0x6E:
+            self.__charge_function_str = charge_function_str[1][4]
+        elif self.__charge_function >= 0x6F and self.__charge_function <= 0xA0:
+            self.__charge_function_str = charge_function_str[1][5]
+        elif self.__charge_function >= 0xA1 and self.__charge_function <= 0xFF:
+            self.__charge_function_str = charge_function_str[1][6]
 
-    def getTopicalVoltage(self):
-        return self.__topicalVoltage
+    def get_topical_voltage(self):
+        return self.__topical_voltage
 
-    def getTopicalCurrent(self):
-        return self.__topicalCurrent
+    def get_topical_current(self):
+        return self.__topical_current
 
-    def getTopicalAccuCapacity(self):
-        return self.__topicalAccuCapacity 
+    def get_topical_accu_capacity(self):
+        return self.__topical_accu_capacity
 
-    def getAccuNumber(self):
+    def get_accu_number(self):
         return self.__accu_number
 
-    def getChargeCurrent(self):
-        return self.__chargeCurrent 
+    def get_charge_current(self):
+        return self.__charge_current
 
-    def getRechargeCurrent(self):
-        return self.__rechargeCurrent
+    def get_recharge_current(self):
+        return self.__recharge_current
 
-    def getAccuTypeDescription(self):
+    def get_accu_type_description(self):
         return self.__accu_type_description
 
-    def getCellCount(self):
-        return self.__cellCount
+    def get_cell_count(self):
+        return self.__cell_count
 
-    def getProgramNumber(self):
-        return self.__programNumber
+    def get_program_number(self):
+        return self.__program_number
 
-    def getFormatingCurrent(self):
-        return self.__formattingCurrent
+    def get_formating_current(self):
+        return self.__formatting_current
 
-    def getRestPeriod(self):
-        return self.__restPeriod
+    def get_rest_period(self):
+        return self.__rest_period
 
-    def getChargeFlags(self):
+    def get_charge_flags(self):
         # TODO: Flags seperat auswerten
-        return self.__chargeFlags
+        return self.__charge_flags
 
-    def getPointerDataRecord(self):
-        return self.__pointerDataRecord
+    def get_pointer_data_record(self):
+        return self.__pointer_data_record
 
-    def getAccuCapacityFactor(self):
-        return self.__accuCapacityFactor
+    def get_accu_capacity_factor(self):
+        return self.__accu_capacity_factor
 
-    def getChargeFunktion(self):
-        return self.__chargeFunktion
+    def get_charge_function(self):
+        return self.__charge_function
 
-    def getChargeFunctionStr(self):
-        return self.__chargeFunktionStr
+    def get_charge_function_str(self):
+        return self.__charge_function_str
 
 
 class ChargeDeviceAccuDbEntry():
-    
-    def __init__(self, chargePort: serial.Serial, dbEntryNumber):
-        
-        self.__chargePort = chargePort
-        self.__dbEntryNumber = dbEntryNumber
 
-    def pulldbEntry(self):
-        temp_ByteArray: bytearray
-        channelInstr = bytearray([0x64, self.__dbEntryNumber])
-        temp_ByteArray = transByArToEscByAr(channelInstr)
+    def __init__(self, charge_port: serial.Serial, db_entry_number):
+
+        self.__charge_port = charge_port
+        self.__db_entry_number = db_entry_number
+
+        self.__accu_name: str = str()
+        self.__db_reread_entry_number: bytes = bytes()
+        self.__accu_type: bytes = bytes()
+        self.__accu_cell_count: bytes = bytes()
+        self.__accu_capacity: float = float()
+        self.__recharge_current: float = float()
+        self.__charge_current: float = float()
+        self.__rest_period: int = int()
+        self.__charge_flags: bytes = bytes()
+        self.__functions_flags: bytes = bytes()
+
+    def pull_db_entry(self):
+        """Liest einen Akku-Parameter-Datensatz.
+
+        Liest einen Akku-Parameter-Datensatz und scheibt ihn in die
+        entsprechenden privaten Variablen
         """
-        for i in range(0,temp_ByteArray.__len__()):
-            self.__chargePort.write(temp_ByteArray[i])
-            time.sleep(0.01)
-            print(i," ",temp_ByteArray[i])
-        """
-        self.__chargePort.write(transByArToEscByAr(channelInstr))
-        temp_ByteArray          = self.__chargePort.read_until(b'\x03',50)
-        temp_ByteArray          = transEscByArToClearByAr(temp_ByteArray)
-        self.__accuName         = temp_ByteArray[2:11].decode()
-        self.__dbRereadEntryNumber = temp_ByteArray[1]
-        self.__accuType         = temp_ByteArray[11]
-        self.__accuCellCount    = temp_ByteArray[12]
-        self.__accuCapacity     = float((temp_ByteArray[13] * 0x1000000 + temp_ByteArray[14] * 0x10000 + temp_ByteArray[15] * 0x100 + temp_ByteArray[16]) / 10000)
-        self.__rechargeCurrent  = float((temp_ByteArray[17] * 256 + temp_ByteArray[18]) / 10)
-        self.__chargeCurrent    = float((temp_ByteArray[19] * 256 + temp_ByteArray[20]) / 10)
-        self.__restPeriod       = temp_ByteArray[21] * 256 + temp_ByteArray[22]
-        self.__chargeFlags      = temp_ByteArray[23]
-        self.__functionsFlags   = temp_ByteArray[24]
+        temp_byte_array: bytearray
+        channel_instr = bytearray([0x64, self.__db_entry_number])
+        temp_byte_array = trans_by_ar_to_esc_by_ar(channel_instr)
+        self.__charge_port.write(trans_by_ar_to_esc_by_ar(channel_instr))
+        temp_byte_array = self.__charge_port.read_until(b'\x03', 50)
+        temp_byte_array = trans_esc_by_ar_to_clear_by_ar(temp_byte_array)
+        self.__accu_name = temp_byte_array[2:11].decode()
+        self.__db_reread_entry_number = temp_byte_array[1]
+        self.__accu_type = temp_byte_array[11]
+        self.__accu_cell_count = temp_byte_array[12]
+        self.__accu_capacity = float(
+            (temp_byte_array[13] * 0x1000000 + temp_byte_array[14] * 0x10000 + temp_byte_array[15] * 0x100 + temp_byte_array[16]) / 10000)
+        self.__recharge_current = float(
+            (temp_byte_array[17] * 256 + temp_byte_array[18]) / 10)
+        self.__charge_current = float(
+            (temp_byte_array[19] * 256 + temp_byte_array[20]) / 10)
+        self.__rest_period = temp_byte_array[21] * 256 + temp_byte_array[22]
+        self.__charge_flags = temp_byte_array[23]
+        self.__functions_flags = temp_byte_array[24]
 
+    def get_accu_name(self):
+        return self.__accu_name
 
-    def getAccuName(self):
-        return self.__accuName
+    def get_accu_typ(self):
+        return self.__accu_type
 
-    def getAccuTyp(self):
-        return self.__accuType
+    def get_accu_cell_count(self):
+        return self.__accu_cell_count
 
-    def getAccuCellCount(self):
-        return self.__accuCellCount
+    def get_accu_capacity(self):
+        return self.__accu_capacity
 
-    def getAccuCapacity(self):
-        return self.__accuCapacity
+    def get_recharge_current(self):
+        return self.__recharge_current
 
-    def getRechargeCurrent(self):
-        return self.__rechargeCurrent
+    def get_charge_current(self):
+        return self.__charge_current
 
-    def getChargeCurrent(self):
-        return self.__chargeCurrent
+    def get_rest_period(self):
+        return self.__rest_period
 
-    def getRestPeriod(self):
-        return self.__restPeriod
+    def get_charge_flags(self):
+        return self.__charge_flags
 
-    def getChargeFlags(self):
-        return self.__chargeFlags
-
-    def getFunctionsFlags(self):
-        return self.__functionsFlags
+    def get_functions_flags(self):
+        return self.__functions_flags
 
 
 if __name__ == "__main__":
 
-    chargeDevice = charge_devices_alc_generic("COM4")
-    chargeDevice.set_ver_ser_num(chargeDevice.pull_ver_ser_num())
-    chargeDevice.set_temperatures(chargeDevice.pull_temperatures())
+    charge_device = charge_devices_alc_generic("COM4")
+    charge_device.set_ver_ser_num(charge_device.pull_ver_ser_num())
+    charge_device.set_temperatures(charge_device.pull_temperatures())
 
-    chargeCannel = Charge_device_alc_channel(chargeDevice.get_charge_port(), 0)
-    chargeCannel.pullCurrentCannelData()
-    chargeCannel.pullCurrentMeasuredValues()
-    chargeCannel.pullChargeFunction()
-    chargeDBentry = ChargeDeviceAccuDbEntry(chargeDevice.get_charge_port(), 0x05)
-    chargeDBentry.pulldbEntry()
+    charge_cannel = ChargeDeviceAlcChannel(charge_device.get_charge_port(), 0)
+    charge_cannel.pull_current_cannel_data()
+    charge_cannel.pull_current_measured_values()
+    charge_cannel.pull_charge_function()
+    charge_db_entry = ChargeDeviceAccuDbEntry(
+        charge_device.get_charge_port(), 0x05)
+    charge_db_entry.pull_db_entry()
 
-    print(chargeDevice.get_ser_num())
-    print(chargeDevice.get_device_type_long())
-    print(chargeDevice.get_device_type_short())
-    print(chargeDevice.get_device_sw_version())
-    print(chargeCannel.getChargeFunctionStr())
-    print(chargeDevice.get_main_temperature(), "°C")
+    print(charge_device.get_ser_num())
+    print(charge_device.get_device_type_long())
+    print(charge_device.get_device_type_short())
+    print(charge_device.get_device_sw_version())
+    print(charge_cannel.get_charge_function_str())
+    print(charge_device.get_main_temperature(), "°C")
 
-    print(chargeDBentry.getAccuName())
-    print(chargeDBentry.getAccuTyp())
-    print(chargeDBentry.getAccuCellCount())
-    print(chargeDBentry.getChargeCurrent())
+    print(charge_db_entry.get_accu_name())
+    print(charge_db_entry.get_accu_typ())
+    print(charge_db_entry.get_accu_cell_count())
+    print(charge_db_entry.get_charge_current())

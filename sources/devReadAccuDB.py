@@ -3,17 +3,17 @@ import serial
 from serial.serialutil import PARITY_EVEN, Timeout
 import serial.tools.list_ports, serial.tools.list_ports_common, serial.tools.list_ports_windows
 import Charge_ALC
-from simpleHelpFunc import transByArToEscByAr, transEscByArToClearByAr
+from simpleHelpFunc import trans_by_ar_to_esc_by_ar, trans_esc_by_ar_to_clear_by_ar
 
 def pulldbEntry(chargeport:serial.Serial,dbEntryNumber):
     temp_ByteArray : bytearray
 
     print(dbEntryNumber)
-    channelInstr            = transByArToEscByAr([0x64,dbEntryNumber])
+    channelInstr            = trans_by_ar_to_esc_by_ar([0x64,dbEntryNumber])
     print(channelInstr)
     chargeport.write(channelInstr)
     temp_ByteArray          = chargeport.read_until(b'\x03',50)
-    temp_ByteArray          = transEscByArToClearByAr(temp_ByteArray)
+    temp_ByteArray          = trans_esc_by_ar_to_clear_by_ar(temp_ByteArray)
     
     accuName                = temp_ByteArray[2:11].decode()
     dbRereadEntryNumber = temp_ByteArray[1]

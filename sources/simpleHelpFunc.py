@@ -3,7 +3,7 @@ import sys
 class byteArrayToShort(Exception):
     pass
 
-def transEscByArToClearByAr(RawArray : bytearray):
+def trans_esc_by_ar_to_clear_by_ar(RawArray : bytearray):
     ''' Entfernt Rahmenzeichen und ESCs
 
     Entfernt aus dem übergebenen Bytearray das erste und letzte Zeichen
@@ -42,7 +42,7 @@ def transEscByArToClearByAr(RawArray : bytearray):
                 newArray.append(RawArray[i])
     return(bytearray(newArray))
 
-def transByArToEscByAr(RawArray : bytearray):
+def trans_by_ar_to_esc_by_ar(RawArray : bytearray):
     ''' Fügt Rahmenzeichen und ESCs ein
 
     Fügt in das übergebenen Bytearray die Rahmenzeichen ein
@@ -75,11 +75,11 @@ def transByArToEscByAr(RawArray : bytearray):
 # 
 if __name__ == "__main__":
   
-    print(transEscByArToClearByAr(([0x02,0x01,0x04,0xFF,0x05,0x12,0x03,0x05,0x15,0x03])))
+    print(trans_esc_by_ar_to_clear_by_ar(([0x02,0x01,0x04,0xFF,0x05,0x12,0x03,0x05,0x15,0x03])))
 
     try:
-        print(transEscByArToClearByAr([0x02,0x03]))
+        print(trans_esc_by_ar_to_clear_by_ar([0x02,0x03]))
     except byteArrayToShort:
         print("Der übergebene String ist zu kurz!")
 
-    print(transByArToEscByAr([0x01,0x03,0x04,0xFF]))
+    print(trans_by_ar_to_esc_by_ar([0x01,0x03,0x04,0xFF]))
