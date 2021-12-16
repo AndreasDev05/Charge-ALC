@@ -1,2 +1,5 @@
 
 .vscode/settings.json
+.github/ISSUE_TEMPLATE
+.github
+sources/__pycache__/
