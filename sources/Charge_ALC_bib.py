@@ -6,22 +6,12 @@ import serial.tools.list_ports_common
 import serial.tools.list_ports_windows
 from serial.serialutil import PARITY_EVEN, Timeout
 
-from simpleHelpFunc import trans_by_ar_to_esc_by_ar, trans_esc_by_ar_to_clear_by_ar
+from simple_help_func import (trans_by_ar_to_esc_by_ar,
+                              trans_esc_by_ar_to_clear_by_ar,
+                              trans_accu_num_to_str)
 
 # import locale
 # locale.setlocale(locale.LC_ALL, 'de_DE')
-
-
-def trans_accu_num_to_str(accu_number: bytes):
-    """ Gibt den ausgeschriebenen Akkutyp zurück.
-
-    Der übergebene Bytewert wird in ein String umgesetzt
-    """
-    accu_typs_str = ["NiCd", "NiMH", "Li-Ion", "LiPo", "Pb", "LiFePO", "N/A"]
-    if accu_number < bytes(6):
-        return accu_typs_str[int(accu_number)]
-    else:
-        return accu_typs_str[6]
 
 
 class charge_devices_alc_generic():
@@ -40,31 +30,17 @@ class charge_devices_alc_generic():
         self.__temp_power_sup_float: float = float()
         self.__charge_port = serial.Serial(
             ser_port, 38400, 8, PARITY_EVEN, 1, 3)
-        # TODO: Expliziete Übergabe der Schnittstellenparameter, für eine unverselle Funktion
+        # TODO: Expliziete Übergabe der Schnittstellenparameter,
+        # für eine unverselle Funktion
     #    print(type(self.__chargePort))
 
     def pull_ver_ser_num(self):
-        temp_byte_array: bytearray
-        charge_instr = bytearray([0x75])
+        """Liest die Identität des Ladesgerätes aus.
 
-        self.__charge_port.write(trans_by_ar_to_esc_by_ar(charge_instr))
-
-        temp_byte_array = self.__charge_port.read_until(b'\x03', 50)
-        temp_byte_array = trans_esc_by_ar_to_clear_by_ar(temp_byte_array)
-        return temp_byte_array
-
-    def pull_temperatures(self):
-        temp_byte_array: bytearray
-        charge_instr = bytearray([0x74])
-
-        self.__charge_port.write(trans_by_ar_to_esc_by_ar(charge_instr))
-
-        temp_byte_array = self.__charge_port.read_until(b'\x03', 50)
-        temp_byte_array = trans_esc_by_ar_to_clear_by_ar(temp_byte_array)
-        return temp_byte_array
-
-    def set_ver_ser_num(self, ser_num_raw: bytearray):
-        long_alc_typ = {98: "ALC 8500 Firmware < 2.00",
+        Läd die statischen Parameter und speichert sie in die Objektvariablen.
+        Wandelt auch die numerische Typennummern in Strings um.
+        """
+        LONG_ALC_TYP = {98: "ALC 8500 Firmware < 2.00",
                         99: "ALC 8000 Firmware < 2.00",
                         100: "ALC 8500-2 Firmware < 2.00",
                         101: "ALC 8000 PLUS Firmware < 2.00",
@@ -74,37 +50,85 @@ class charge_devices_alc_generic():
                         105: "ALC 8000 Firmware > 2.00",
                         106: "ALC 5000 mobil Firmware > 2.00"}
 
-        short_alc_typ = {98: "ALC8500", 99: "ALC8000", 100: "ALC8500-2",
-                        101: "ALC8000PLUS", 102: "ALC5000mobile",
-                        103: "ALC3000PC", 104: "ALC8500-2",
-                        105: "ALC8000", 106: "ALC5000mobil"}
+        SHORT_ALC_TYP = {98: "ALC8500", 99: "ALC8000", 100: "ALC8500-2",
+                         101: "ALC8000PLUS", 102: "ALC5000mobile",
+                         103: "ALC3000PC", 104: "ALC8500-2",
+                         105: "ALC8000", 106: "ALC5000mobil"}
+        temp_byte_array: bytearray
+        charge_instr = bytearray([0x75])
 
-        temp_string = ser_num_raw[6:10]
+        self.__charge_port.write(trans_by_ar_to_esc_by_ar(charge_instr))
+
+        temp_byte_array = self.__charge_port.read_until(b'\x03', 50)
+        temp_byte_array = trans_esc_by_ar_to_clear_by_ar(temp_byte_array)
+
+        temp_string = temp_byte_array[6:10]
         self.__sw_version = temp_string.decode()
-        self.__type_long = long_alc_typ[ser_num_raw[1]]
-        self.__type_short = short_alc_typ[ser_num_raw[1]]
+        self.__type_long = LONG_ALC_TYP[temp_byte_array[1]]
+        self.__type_short = SHORT_ALC_TYP[temp_byte_array[1]]
 
-        temp_string = ser_num_raw[12:22]
+        temp_string = temp_byte_array[12:22]
         self.__serial_number = temp_string.decode()
 
-    def set_temperatures(self, temperatures_raw: bytearray):
+    def pull_temperatures(self):
+        """Läd die Temperaturwerte des Ladegerätes aus.
 
-        temp_temp_int = temperatures_raw[1] * 256 + temperatures_raw[2]
+        Läd die dynamischen Temperaturwerte und speichert sie in die
+        Objektvariablen. Die Werte werden in °C umgerechnet und als
+        Fließkommawerte abgespeichert
+        """
+        temp_byte_array: bytearray
+        charge_instr = bytearray([0x74])
+
+        self.__charge_port.write(trans_by_ar_to_esc_by_ar(charge_instr))
+
+        temp_byte_array = self.__charge_port.read_until(b'\x03', 50)
+        temp_byte_array = trans_esc_by_ar_to_clear_by_ar(temp_byte_array)
+
+        temp_temp_int = temp_byte_array[1] * 256 + temp_byte_array[2]
+
         if temp_temp_int == 0xABE0:
             self.__temp_accu_float = None
         else:
             self.__temp_accu_float = float(temp_temp_int / 100)
         # TODO: Negative Temperaturen berechnen
 
-        temp_temp_int = temperatures_raw[3] * 256 + temperatures_raw[4]
+        temp_temp_int = temp_byte_array[3] * 256 + temp_byte_array[4]
         if temp_temp_int == 0xABE0:
             self.__temp_power_sup_float = None
         else:
             self.__temp_power_sup_float = float(temp_temp_int / 100)
         # TODO: Negative Temperaturen berechnen
 
-        temp_temp_int = temperatures_raw[5] * 256 + temperatures_raw[6]
+        temp_temp_int = temp_byte_array[5] * 256 + temp_byte_array[6]
         self.__temp_main_float = float(temp_temp_int / 100)
+
+    def get_is_alc_ready(self):
+        """Diese Funktion kontrolliert Erreichbarkeit des Gerätes.
+
+        Die Funktion fragt das Gerät ab. Ist das Gerät erreichbar und gibt die
+        richtige Seriennummer zurück, erhält man ein TRUE, anderenfalls FALSE.
+        """
+        temp_byte_array: bytearray
+        charge_instr = bytearray([0x75])
+        try:
+            self.__charge_port.write(trans_by_ar_to_esc_by_ar(charge_instr))
+            temp_byte_array = self.__charge_port.read_until(b'\x03', 50)
+        except FileNotFoundError:
+            temp_return = False
+            return temp_return
+
+        temp_byte_array = trans_esc_by_ar_to_clear_by_ar(temp_byte_array)
+
+        temp_string = temp_byte_array[12:22]
+        temp_serial_number = temp_string.decode()
+
+        if temp_serial_number == self.__serial_number:
+            temp_return = True
+        else:
+            temp_return = False
+
+        return temp_return
 
     def get_ser_num(self):
         return self.__serial_number
@@ -194,8 +218,13 @@ class ChargeDeviceAlcChannel():
         self.__channel_number = channel_number
 
     def pull_current_cannel_data(self):
+        """Läd die Parameter des übergebenen Ladekanals.
+
+        Läd die statischen Parameter und speichert sie in die Objektvariablen
+        Der Ladekanal wird bei der Erzeugung der Instanz übergeben
+        """
         temp_byte_array: bytearray
-        #self.__chargePort = serial.Serial(self.ser_port, 38400, 8, PARITY_EVEN, 1, 3)
+        # self.__chargePort = serial.Serial(self.ser_port, 38400, 8, PARITY_EVEN, 1, 3)
         channel_instr = bytearray([0x70, self.__channel_number])
         self.__charge_port.write(trans_by_ar_to_esc_by_ar(channel_instr))
 
@@ -210,8 +239,8 @@ class ChargeDeviceAlcChannel():
         self.__charge_current = float(
             (temp_byte_array[7] * 256 + temp_byte_array[8]) / 10)
         self.__accu_capacity = float(
-            (temp_byte_array[9] * 0x1000000 + temp_byte_array[10] * 0x10000 + 
-            temp_byte_array[11] * 0x100 + temp_byte_array[12]) / 10000)
+            (temp_byte_array[9] * 0x1000000 + temp_byte_array[10] * 0x10000 +
+             temp_byte_array[11] * 0x100 + temp_byte_array[12]) / 10000)
         self.__program_number = temp_byte_array[13]
         self.__formatting_current = float(
             (temp_byte_array[14] * 256 + temp_byte_array[15]) / 10)
@@ -221,13 +250,13 @@ class ChargeDeviceAlcChannel():
             256 + temp_byte_array[20]
         self.__accu_capacity_factor = temp_byte_array[21]
 
-        print("Akkunummer: ", self.__accu_number)
-        print("Ladestrom: ", self.__charge_current)
-        print("Entladestrom: ", self.__recharge_current)
-        print("Akkutype: ", self.__accu_type_description)
-        print("Akkukapazität: ", self.__accu_capacity)
-
     def pull_current_measured_values(self):
+        """Läd die Parameter des übergebenen Ladekanals.
+
+        Läd die dynamischen Parameter und speichert sie in die Objektvariablen
+        Es werden Spannung, Strom und Kapazität gelesen.
+        Der Ladekanal wird bei der Erzeugung der Instanz übergeben
+        """
         temp_byte_array: bytearray
         attempt_count = 0
         channel_instr = bytearray([0x6D, self.__channel_number])
@@ -249,15 +278,23 @@ class ChargeDeviceAlcChannel():
         else:
             self.__topical_current = None
         self.__topical_accu_capacity = float(
-            (temp_byte_array[6] * 0x1000000 + temp_byte_array[7] * 0x10000 + temp_byte_array[8] * 0x100 + temp_byte_array[9]) / 10000)
+            (temp_byte_array[6] * 0x1000000 + temp_byte_array[7] * 0x10000 +
+             temp_byte_array[8] * 0x100 + temp_byte_array[9]) / 10000)
         attempt_count = attempt_count + 1
 
     def pull_charge_function(self):
+        """Läd die Parameter des übergebenen Ladekanals.
+
+        List den Status des Kanals und speichert sie in die Objektvariablen.
+        Der Ladekanal wird bei der Erzeugung der Instanz übergeben
+        """
         temp_byte_array: bytearray
         charge_function_str_de = {0: "DE", 1: "Leerlauf", 2: "Pause / Warten",
-                                  3: "Entladen", 4: "Erhaltungsladung", 5: "Entladen beendet", 6: "Notabschaltung"}
-        charge_function_str_en = {0: "EN", 1: "idel state", 2: "pause / wait", 3: "discharge",
-                                  4: "maintenance charging", 5: "discharge end", 6: "emergency cutout"}
+                                  3: "Entladen", 4: "Erhaltungsladung",
+                                  5: "Entladen beendet", 6: "Notabschaltung"}
+        charge_function_str_en = {0: "EN", 1: "idel state", 2: "pause / wait",
+                                  3: "discharge", 4: "maintenance charging",
+                                  5: "discharge end", 6: "emergency cutout"}
         charge_function_str = [charge_function_str_en, charge_function_str_de]
         channel_instr = bytearray([0x61, self.__channel_number])
 
@@ -338,9 +375,11 @@ class ChargeDeviceAccuDbEntry():
         self.__charge_port = charge_port
         self.__db_entry_number = db_entry_number
 
+        self.__blank_db_entry: bool = bool()
         self.__accu_name: str = str()
         self.__db_reread_entry_number: bytes = bytes()
         self.__accu_type: bytes = bytes()
+        self.__accu_type_description: str = str()
         self.__accu_cell_count: bytes = bytes()
         self.__accu_capacity: float = float()
         self.__recharge_current: float = float()
@@ -361,12 +400,19 @@ class ChargeDeviceAccuDbEntry():
         self.__charge_port.write(trans_by_ar_to_esc_by_ar(channel_instr))
         temp_byte_array = self.__charge_port.read_until(b'\x03', 50)
         temp_byte_array = trans_esc_by_ar_to_clear_by_ar(temp_byte_array)
+
         self.__accu_name = temp_byte_array[2:11].decode()
         self.__db_reread_entry_number = temp_byte_array[1]
         self.__accu_type = temp_byte_array[11]
+        self.__accu_type_description = trans_accu_num_to_str(self.__accu_type)
+        if self.__accu_type == 0xFF:
+            self.__blank_db_entry = True
+        else:
+            self.__blank_db_entry = False
         self.__accu_cell_count = temp_byte_array[12]
         self.__accu_capacity = float(
-            (temp_byte_array[13] * 0x1000000 + temp_byte_array[14] * 0x10000 + temp_byte_array[15] * 0x100 + temp_byte_array[16]) / 10000)
+            (temp_byte_array[13] * 0x1000000 + temp_byte_array[14] * 0x10000 +
+             temp_byte_array[15] * 0x100 + temp_byte_array[16]) / 10000)
         self.__recharge_current = float(
             (temp_byte_array[17] * 256 + temp_byte_array[18]) / 10)
         self.__charge_current = float(
@@ -375,11 +421,17 @@ class ChargeDeviceAccuDbEntry():
         self.__charge_flags = temp_byte_array[23]
         self.__functions_flags = temp_byte_array[24]
 
+    def get_is_db_entry_blank(self):
+        return self.__blank_db_entry
+
     def get_accu_name(self):
         return self.__accu_name
 
     def get_accu_typ(self):
         return self.__accu_type
+
+    def get_accu_type_description(self):
+        return self.__accu_type_description
 
     def get_accu_cell_count(self):
         return self.__accu_cell_count
@@ -407,7 +459,7 @@ if __name__ == "__main__":
 
     charge_device = charge_devices_alc_generic("COM4")
     charge_device.set_ver_ser_num(charge_device.pull_ver_ser_num())
-    charge_device.set_temperatures(charge_device.pull_temperatures())
+    charge_device.pull_temperatures()
 
     charge_cannel = ChargeDeviceAlcChannel(charge_device.get_charge_port(), 0)
     charge_cannel.pull_current_cannel_data()
