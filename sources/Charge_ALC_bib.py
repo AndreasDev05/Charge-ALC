@@ -55,7 +55,7 @@ class charge_devices_alc_generic():
                          103: "ALC3000PC", 104: "ALC8500-2",
                          105: "ALC8000", 106: "ALC5000mobil"}
         temp_byte_array: bytearray
-        charge_instr = bytearray([0x75])
+        charge_instr = bytearray([ord("u")])
 
         self.__charge_port.write(trans_by_ar_to_esc_by_ar(charge_instr))
 
@@ -191,6 +191,11 @@ class ChargeDeviceALC3000(charge_devices_alc_generic):
 
 
 class ChargeDeviceAlcChannel():
+    """Verwalte den Ladekanal eines ALCs.
+
+    Liest und schreibt Ladeparameter eines Kanals eines ALCs.
+    Ein ALC3000 hat aber nur den Kanal 0.
+    """
 
     def __init__(self, charge_port: serial.Serial, channel_number):
 
@@ -330,6 +335,9 @@ class ChargeDeviceAlcChannel():
     def get_accu_number(self):
         return self.__accu_number
 
+    def get_program_number(self):
+        return self.__program_number
+
     def get_charge_current(self):
         return self.__charge_current
 
@@ -339,11 +347,11 @@ class ChargeDeviceAlcChannel():
     def get_accu_type_description(self):
         return self.__accu_type_description
 
+    def get_accu_capacity(self):
+        return self.__accu_capacity
+
     def get_cell_count(self):
         return self.__cell_count
-
-    def get_program_number(self):
-        return self.__program_number
 
     def get_formating_current(self):
         return self.__formatting_current

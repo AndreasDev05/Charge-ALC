@@ -1,3 +1,9 @@
+import serial
+import serial.tools.list_ports
+import serial.tools.list_ports_common
+import serial.tools.list_ports_windows
+from serial.serialutil import PARITY_EVEN, Timeout
+
 # import sys
 
 
@@ -90,6 +96,54 @@ def trans_by_ar_to_esc_by_ar(raw_array: bytearray):
             new_array.append(raw_array[i])
     new_array.append(0x03)
     return(bytearray(new_array))
+
+
+def search_elv_device():
+    """Sucht ELV Geräte.
+
+    sucht ELV Geräte. Die Geräte werden als eine mehrdimensionale Liste für
+    die weitere Auswertung zurückgegeben.
+    """
+    charge_devices_list_comport = []
+    charge_devices_list_description = []
+    charge_devices_list = []
+    temp_count = 0
+
+    all_ser_ports = serial.tools.list_ports.comports()
+    for singel_port in all_ser_ports:
+        if singel_port.vid == 6383:  # 6383 ist die VID der ELV AG
+            charge_devices_list_comport.append(singel_port.device.strip())
+            charge_devices_list_description.append(singel_port.description.strip())
+            temp_count += 1
+
+    charge_devices_list.append(charge_devices_list_comport)
+    charge_devices_list.append(charge_devices_list_description)
+    if temp_count == 0:
+        charge_devices_list = None
+    return charge_devices_list
+
+
+def is_found_dev_a_alc(com_port: str):
+    """Prüft ob ein ALC vorliegt.
+
+    liest die statischen Variablen des Gerätes aus und prüft ob die Antwort
+    eine typische Länge hat.
+    """
+    temp_byte_array: bytearray
+    charge_instr = bytearray([ord("u")])
+    charge_port = serial.Serial(com_port, 38400, 8, PARITY_EVEN, 1, 3)
+    # TODO: Expliziete Übergabe der Schnittstellenparameter,
+    # für eine unverselle Funktion
+
+    charge_port.write(trans_by_ar_to_esc_by_ar(charge_instr))
+
+    temp_byte_array = charge_port.read_until(b'\x03', 50)
+    if (temp_byte_array.__len__() > 20) and (temp_byte_array.__len__() < 49):
+        return_flag = True
+    else:
+        return_flag = False
+    charge_port.close()
+    return return_flag
 
 
 #
