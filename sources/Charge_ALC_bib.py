@@ -64,6 +64,7 @@ class charge_devices_alc_generic():
 
         temp_string = temp_byte_array[6:10]
         self.__sw_version = temp_string.decode()
+        self.__type_int = int(temp_byte_array[1])
         self.__type_long = LONG_ALC_TYP[temp_byte_array[1]]
         self.__type_short = SHORT_ALC_TYP[temp_byte_array[1]]
 
@@ -133,10 +134,26 @@ class charge_devices_alc_generic():
     def get_ser_num(self):
         return self.__serial_number
 
+    def get_device_type_int(self):
+        """Typ des Ladegerätes.
+
+        Gibt den Typ des Ladegerätes als Integer zurück
+        """
+        return self.__type_int
+
     def get_device_type_long(self):
+        """Typ des Ladegerätes (ausführlich).
+
+        Gibt den Typ des Ladegerätes als ausführlichen String zurück
+        """
         return self.__type_long
 
     def get_device_type_short(self):
+        """Typ des Ladegerätes (Kurzform).
+
+        Gibt den Typ des Ladegerätes als kurzer String zurück
+        Ohne Leerzeichen
+        """
         return self.__type_short
 
     def get_device_sw_version(self):
@@ -176,19 +193,21 @@ class ChargeDeviceALC3000(charge_devices_alc_generic):
     def __init__(self, ser_port):
         charge_devices_alc_generic.__init__(self, ser_port)
 
+        self.charge_cannel_ins = []
+        self.charge_db_entry = []
+
         self.charge_cannel_ins: list = list()
         self.charge_db_entry: list = list()
-        for i in range(1, self.charge_cannel):
-            self.charge_cannel_ins[i] = ChargeDeviceAlcChannel(
-                self.__charge_port, i-1)
-            self.charge_cannel_ins[i].pullCurrentCannelData()
-            self.charge_cannel_ins[i].pullCurrentMeasuredValues()
+        for i in range(0, self.charge_cannel):
+            self.charge_cannel_ins.append(ChargeDeviceAlcChannel(
+                self.get_charge_port(), i))
+            self.charge_cannel_ins[i].pull_current_cannel_data()
+            self.charge_cannel_ins[i].pull_current_measured_values()
 
         for i in range(self.accu_db_items):
-            self.charge_db_entry[i] = ChargeDeviceAccuDbEntry(
-                self.__charge_port, i)
-            self.charge_db_entry[i].pulldbEntry()
-
+            self.charge_db_entry.append(ChargeDeviceAccuDbEntry(
+                self.get_charge_port(), i))
+            self.charge_db_entry[i].pull_db_entry()
 
 class ChargeDeviceAlcChannel():
     """Verwalte den Ladekanal eines ALCs.
@@ -431,6 +450,9 @@ class ChargeDeviceAccuDbEntry():
 
     def get_is_db_entry_blank(self):
         return self.__blank_db_entry
+
+    def get_db_reread_entry_number(self):
+        return self.__db_reread_entry_number
 
     def get_accu_name(self):
         return self.__accu_name

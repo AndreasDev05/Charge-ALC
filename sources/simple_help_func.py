@@ -76,7 +76,6 @@ def trans_by_ar_to_esc_by_ar(raw_array: bytearray):
     0x02    ->  0x05 0x12
     0x03    ->  0x05 0x13
     0x05    ->  0x05 0x15
-
     """
     laenge = int(raw_array.__len__())
     if laenge < 1:
