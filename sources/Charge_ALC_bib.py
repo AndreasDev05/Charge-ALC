@@ -449,6 +449,11 @@ class ChargeDeviceAccuDbEntry():
         self.__functions_flags = temp_byte_array[24]
 
     def get_is_db_entry_blank(self):
+        """Gibt des Status des DB-Eintrags wieder.
+
+        Ist der Eintrag belegt gibt die Fkt. ein "falsch" zurück,
+        anderenfalls ein "wahr".
+        """
         return self.__blank_db_entry
 
     def get_db_reread_entry_number(self):

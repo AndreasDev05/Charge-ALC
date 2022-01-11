@@ -123,10 +123,17 @@ if __name__ == "__main__":
                         charge_device.get_charge_port(), i))
                     charge_db_entry[i].pull_db_entry()
                 print(charge_db_entry[0].get_accu_name())
-                print("{:<5} {:<10}".format("DB#", "Name"))
+                print("{:<3} {:<11} {:<8} {:<6}".format("DB#", "Name", "Anzahl", "Typ"))
                 print(20*"####")
                 for j in charge_db_entry:
-                    print("{:<5} {:<10} ".format(j.get_db_reread_entry_number(), j.get_accu_name()))
+                    if j.get_is_db_entry_blank():
+                        print(j.get_db_reread_entry_number(), " N/A.")
+                    else:
+                        print("{:<3} {:<11} {:<8} {:<6}".format(
+                              j.get_db_reread_entry_number(),
+                              j.get_accu_name(), j.get_accu_cell_count(),
+                              j.get_accu_type_description()
+                              ))
             else:
                 print("Das Gerät ist kein Lagegerät oder ist nicht angeschaltet.")
         else:
