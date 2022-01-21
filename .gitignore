@@ -3,3 +3,4 @@
 .github/ISSUE_TEMPLATE
 .github
 sources/__pycache__/
+sources/test_fkt.py

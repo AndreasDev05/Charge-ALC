@@ -209,6 +209,7 @@ class ChargeDeviceALC3000(charge_devices_alc_generic):
                 self.get_charge_port(), i))
             self.charge_db_entry[i].pull_db_entry()
 
+
 class ChargeDeviceAlcChannel():
     """Verwalte den Ladekanal eines ALCs.
 
@@ -403,7 +404,7 @@ class ChargeDeviceAccuDbEntry():
         self.__db_entry_number = db_entry_number
 
         self.__blank_db_entry: bool = bool()
-        self.__accu_name: str = str()
+        self.__accu_name = "Akkudatensatz wurde nicht geladen."
         self.__db_reread_entry_number: bytes = bytes()
         self.__accu_type: bytes = bytes()
         self.__accu_type_description: str = str()
@@ -414,6 +415,7 @@ class ChargeDeviceAccuDbEntry():
         self.__rest_period: int = int()
         self.__charge_flags: bytes = bytes()
         self.__functions_flags: bytes = bytes()
+        self.__func_flags_dict = []
 
     def pull_db_entry(self):
         """Liest einen Akku-Parameter-Datensatz.
@@ -446,7 +448,10 @@ class ChargeDeviceAccuDbEntry():
             (temp_byte_array[19] * 256 + temp_byte_array[20]) / 10)
         self.__rest_period = temp_byte_array[21] * 256 + temp_byte_array[22]
         self.__charge_flags = temp_byte_array[23]
-        self.__functions_flags = temp_byte_array[24]
+        self.__charge_factor = temp_byte_array[24]
+        if self.__charge_factor == 0xFA:
+            self.__charge_factor = None
+        self.__functions_flags = temp_byte_array[25]
 
     def get_is_db_entry_blank(self):
         """Gibt des Status des DB-Eintrags wieder.
@@ -469,7 +474,7 @@ class ChargeDeviceAccuDbEntry():
         return self.__accu_type_description
 
     def get_accu_cell_count(self):
-        return self.__accu_cell_count
+        return int(self.__accu_cell_count)
 
     def get_accu_capacity(self):
         return self.__accu_capacity
@@ -486,8 +491,74 @@ class ChargeDeviceAccuDbEntry():
     def get_charge_flags(self):
         return self.__charge_flags
 
+    def get_charge_factor(self):
+        """Ladefaktor für bestimmte Akkus.
+
+        Funktion gibt den Ladefaktor in Prozent zurück. Wenn er nicht genutzt
+        wird, wird "None" zurückgegeben.
+        """
+        return self.__charge_factor
+
     def get_functions_flags(self):
         return self.__functions_flags
+
+    def get_func_flags_dict(self):
+        """Differenziert das Funktions-Flag-Byte aus.
+
+        Übersetzt das Byte in ein Dictionary.
+        """
+        if (self.__functions_flags & 0x01) != 0:
+            func_flags_dict_EN = {'charge': True}
+            func_flags_dict_DE = {'laden': True}
+        else:
+            func_flags_dict_EN = {'charge': False}
+            func_flags_dict_DE = {'laden': False}
+
+        if (self.__functions_flags & 0b00000010) != 0:
+            func_flags_dict_EN['recharge'] = True
+            func_flags_dict_DE['entladen'] = True
+        else:
+            func_flags_dict_EN['recharge'] = False
+            func_flags_dict_DE['entladen'] = False
+        if (self.__functions_flags & 0b00000100) != 0:
+            func_flags_dict_EN['recharge/charge'] = True
+            func_flags_dict_DE['entladen/laden'] = True
+        else:
+            func_flags_dict_EN['recha_charge'] = False
+            func_flags_dict_DE['entladen/laden'] = False
+        if (self.__functions_flags & 0b00001000) != 0:
+            func_flags_dict_EN['test'] = True
+            func_flags_dict_DE['test'] = True
+        else:
+            func_flags_dict_EN['test'] = False
+            func_flags_dict_DE['test'] = False
+        if (self.__functions_flags & 0b00010000) != 0:
+            func_flags_dict_EN['maintenance'] = True
+            func_flags_dict_DE['Wartung'] = True
+        else:
+            func_flags_dict_EN['maintenance'] = False
+            func_flags_dict_DE['Wartung'] = False
+        if (self.__functions_flags & 0b00100000) != 0:
+            func_flags_dict_EN['forming'] = True
+            func_flags_dict_DE['Formieren'] = True
+        else:
+            func_flags_dict_EN['forming'] = False
+            func_flags_dict_DE['Formieren'] = False
+        if (self.__functions_flags & 0b01000000) != 0:
+            func_flags_dict_EN['cycle'] = True
+            func_flags_dict_DE['Zyklen'] = True
+        else:
+            func_flags_dict_EN['cycle'] = False
+            func_flags_dict_DE['Zyklen'] = False
+        if (self.__functions_flags & 0b10000000) != 0:
+            func_flags_dict_EN['refresh'] = True
+            func_flags_dict_DE['Auffrischen'] = True
+        else:
+            func_flags_dict_EN['refresh'] = False
+            func_flags_dict_DE['Auffrischen'] = False
+
+        self.__func_flags_dict = [func_flags_dict_EN, func_flags_dict_DE]
+        return self.__func_flags_dict
 
 
 if __name__ == "__main__":
