@@ -10,15 +10,21 @@ folgende Optionen können genutzt werde:
 -c x, --channel x Gibt die Paramerter des entsprechenden Kanals aus
 -a, --accudb: Liste mit den Akkuprofilen
 -b x, --dbentry: Der komplette Profil- Datensatz
+-m, --measurement: Gibt die Messwerte des entsprechenden Kanals aus
+-q, --continuous: Gibt die Messwerte alle 5s Sekunden aus.
+                  Das Programm wird mit "q" beendet.
 *-j, --json: Ausgabe der Daten im JSON-Format
 """
 # TODO: Implementierung der JSON-Ausgabe
 import argparse
+from multiprocessing.dummy import active_children
+from time import sleep, time
 
+import keyboard
+
+from charge_alc_bib import (ChargeDeviceAccuDbEntry, ChargeDeviceALC3000,
+                            charge_devices_alc_generic)
 from simple_help_func import is_found_dev_a_alc, search_elv_device
-from charge_alc_bib import charge_devices_alc_generic
-from charge_alc_bib import ChargeDeviceALC3000
-from charge_alc_bib import ChargeDeviceAccuDbEntry
 
 if __name__ == "__main__":
 
@@ -27,6 +33,7 @@ if __name__ == "__main__":
     temp_flag_name = [None] * 2
     temp_flag_status = [None] * 2
     device_list = search_elv_device()
+    active_channel = 1
 #    print(device_list)
 #    if device_list is not None:
 #        print("COM-Port: ", device_list[0][0], "; Beschreibung: ",
@@ -52,6 +59,12 @@ if __name__ == "__main__":
     parse_instance.add_argument("-b", "--dbentry", type=int,
                                 help="""Gibt die Parameter des entsprechenden
                                  AkkuDB-Eintrages aus""")
+    parse_instance.add_argument("-m", "--measurement", action='store_true',
+                                help="""Gibt die aktuellen Messwerte des Kanals
+                                 aus""")
+    parse_instance.add_argument("-q", "--continuous", action='store_true',
+                                help="""Gibt die Werte kontinuierlich aus.
+                                 Abbruch mit 'q'""")
     parse_args = parse_instance.parse_args()
     print(parse_args)
 
@@ -104,7 +117,7 @@ if __name__ == "__main__":
                                                              [device_number-1])
                     print("Parameter des Kanals: ", parse_args.channel)
                     print(20*"####")
-                    print("{:<16} {:<13} {:<14} {:<10}".format("Programmnummer: ", 
+                    print("{:<16} {:<13} {:<14} {:<10}".format("Programmnummer: ",
                           charge_device_3000.charge_cannel_ins[parse_args.channel-1].get_program_number(),
                           "Programmname: ",
                           charge_device_3000.charge_db_entry[charge_device_3000.charge_cannel_ins[parse_args.channel-1].get_program_number()].get_accu_type_description()))
@@ -196,6 +209,69 @@ if __name__ == "__main__":
                               temp_flag_name[0]+" :", temp_flag_status[0],
                               temp_flag_name[1]+" :", temp_flag_status[1]))
                         i = 0
+            else:
+                print("Das Gerät ist kein Lagegerät oder ist nicht angeschaltet.")
+        else:
+            print("No ELV device found.")
+    elif parse_args.measurement:
+        if device_list is not None:
+            if is_found_dev_a_alc(device_list[0][device_number-1]):
+                charge_device = charge_devices_alc_generic(device_list[0]
+                                                           [device_number-1])
+                charge_device.pull_ver_ser_num()
+                if charge_device.get_device_type_int() == 103:
+                    del charge_device
+                    if parse_args.channel:
+                        active_channel = parse_args.channel
+                    charge_device_3000 = ChargeDeviceALC3000(device_list[0]
+                                                             [device_number-1])
+                    charge_device_3000.charge_cannel_ins[active_channel-1].pull_current_measured_values()
+                    charge_device_3000.charge_cannel_ins[active_channel-1].pull_charge_function()
+                    print("Messwerte des Kanals: ", active_channel)
+                    print(20*"####")
+                    print("{:<16} {:<13} {:<14} {:<10}".format("Akkuspannung: ", str(
+                          charge_device_3000.charge_cannel_ins[active_channel-1].get_topical_voltage())+" V",
+                          "Akkustrom: ", str(
+                          charge_device_3000.charge_cannel_ins[active_channel-1].get_topical_current())+" mA"))
+                    print("{:<16} {:<13}".format("Akkukapazität: ", str(
+                          charge_device_3000.charge_cannel_ins[active_channel-1].get_topical_accu_capacity())+" mA/h"))
+                    print("{:<16} {:<13}".format("Lademodus: ",
+                          charge_device_3000.charge_cannel_ins[active_channel-1].get_charge_function_str()))
+            else:
+                print("Das Gerät ist kein Lagegerät oder ist nicht angeschaltet.")
+        else:
+            print("No ELV device found.")
+    elif parse_args.continuous:
+        if device_list is not None:
+            if is_found_dev_a_alc(device_list[0][device_number-1]):
+                charge_device = charge_devices_alc_generic(device_list[0]
+                                                           [device_number-1])
+                charge_device.pull_ver_ser_num()
+                if charge_device.get_device_type_int() == 103:
+                    del charge_device
+                    if parse_args.channel:
+                        active_channel = parse_args.channel
+                    charge_device_3000 = ChargeDeviceALC3000(device_list[0]
+                                                             [device_number-1])
+                    print("Messwerte des Kanals: ", active_channel)
+                    print(20*"####")
+                    i = 0
+                    temp_time_stemp = time()
+                    while True:
+                        if keyboard.is_pressed("q"):
+                            break
+                        else:
+                            sleep(0.05)
+                        if time() > (temp_time_stemp + 5):
+                            i += 1
+                            temp_time_stemp = time()
+                            charge_device_3000.charge_cannel_ins[active_channel-1].pull_current_measured_values()
+                            charge_device_3000.charge_cannel_ins[active_channel-1].pull_charge_function()
+                            print("{:<10} {:<12} {:<14} {:<16}".format(str(
+                                charge_device_3000.charge_cannel_ins[active_channel-1].get_topical_voltage())+" V",
+                                str(charge_device_3000.charge_cannel_ins[active_channel-1].get_topical_current())+" mA",
+                                str(charge_device_3000.charge_cannel_ins[active_channel-1].get_topical_accu_capacity())+" mA/h",
+                                charge_device_3000.charge_cannel_ins[active_channel-1].get_charge_function_str()))
             else:
                 print("Das Gerät ist kein Lagegerät oder ist nicht angeschaltet.")
         else:
